@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>motion-tuner</title>
+  <script>
+    // ちらつき防止のため、CSS読み込み前にテーマ属性を付与する（デフォルトはライト）
+    document.documentElement.dataset.theme = localStorage.getItem("motion-tuner:theme") || "light";
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="app-header-left">
+      <h1 class="app-title"><span class="app-title-mark">●</span> motion-tuner</h1>
+      <div class="theme-toggle" role="group" aria-label="テーマ切替">
+        <button type="button" class="theme-btn" data-theme-choice="light">ライト</button>
+        <button type="button" class="theme-btn" data-theme-choice="dark">ダーク</button>
+      </div>
+    </div>
+    <nav class="app-nav">
+      <button type="button" class="nav-btn" data-nav="library">ライブラリ</button>
+      <button type="button" class="nav-btn" data-nav="add">新規追加</button>
+    </nav>
+  </header>
+
+  <main class="app-main">
+
+    <!-- ライブラリ一覧 -->
+    <section id="view-library" class="view">
+      <div class="view-head">
+        <h2>ライブラリ</h2>
+        <p class="view-desc">複合アニメーション（親）とそれに関連するアニメーション、単体アニメーションの一覧。カードを開いてチューニングできます。</p>
+      </div>
+      <div id="library-root"></div>
+    </section>
+
+    <!-- 新規追加 -->
+    <section id="view-add" class="view" hidden>
+      <div class="view-head">
+        <h2>新規追加</h2>
+      </div>
+
+      <div class="add-tabs" role="tablist">
+        <button type="button" class="add-tab active" data-add-tab="anim" role="tab">単体アニメーション</button>
+        <button type="button" class="add-tab" data-add-tab="proto" role="tab">複合アニメーション</button>
+      </div>
+
+      <!-- アニメーションCSSタブ -->
+      <div id="add-panel-anim" class="add-panel">
+        <p class="view-desc">Claudeとの会話で作ったキーフレームCSSを貼り付けてください。JSONメタ情報つき（パターンA）でも、素の <code>@keyframes</code>（パターンB）でも読み込めます。</p>
+        <div class="add-toolbar">
+          <button type="button" id="copy-claude-prompt" class="btn btn-ghost">Claude用の指示文をコピー</button>
+          <button type="button" id="add-generator-swing" class="btn btn-ghost">数式ジェネレーター：減衰振動スウィングを追加</button>
+        </div>
+        <textarea id="paste-area" class="paste-area" spellcheck="false"
+          placeholder="/*&#10;{ &quot;name&quot;: &quot;商品カードのフェードイン&quot;, ... }&#10;*/&#10;@keyframes fadeIn {&#10;  from { opacity: 0; transform: translateY(var(--distance)); }&#10;  to   { opacity: 1; transform: translateY(0); }&#10;}"></textarea>
+        <div id="parse-error" class="parse-error" hidden></div>
+        <div class="add-actions">
+          <button type="button" id="parse-btn" class="btn btn-primary">読み込んでチューニングへ</button>
+        </div>
+      </div>
+
+      <!-- 複合アニメーション（自己完結HTML）タブ -->
+      <div id="add-panel-proto" class="add-panel" hidden>
+        <p class="view-desc">カルーセルなど、複数要素・JS制御を含む動きは「複合アニメーション」として自己完結HTML一式のまま保管します。Claudeが出力した1ファイルHTMLをそのまま貼り付けてください。</p>
+        <div class="add-toolbar">
+          <button type="button" id="copy-claude-proto-prompt" class="btn btn-ghost">Claude用の指示文をコピー（複合アニメーション）</button>
+        </div>
+        <div class="proto-fields">
+          <input type="text" id="proto-name" placeholder="名前（HTML先頭のメタコメントがあれば自動入力）">
+          <input type="text" id="proto-desc" placeholder="説明（任意）">
+        </div>
+        <textarea id="proto-paste-area" class="paste-area" spellcheck="false"
+          placeholder="&lt;!--&#10;{ &quot;name&quot;: &quot;〇〇カルーセル&quot;, &quot;description&quot;: &quot;...&quot; }&#10;--&gt;&#10;&lt;!DOCTYPE html&gt;&#10;&lt;html&gt;...&lt;/html&gt;"></textarea>
+        <div id="proto-parse-error" class="parse-error" hidden></div>
+        <div class="add-actions">
+          <button type="button" id="proto-save-btn" class="btn btn-primary">複合アニメーションとして保存</button>
+          <span id="proto-edit-note" class="save-status" hidden>編集中（保存で上書き）</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- チューニング -->
+    <section id="view-tune" class="view" hidden>
+      <div class="view-head tune-head">
+        <button type="button" id="back-to-library" class="btn btn-ghost btn-small">← ライブラリへ戻る</button>
+        <span id="save-status" class="save-status" aria-live="polite"></span>
+      </div>
+      <div class="tune-layout">
+        <div class="tune-preview-col">
+          <div class="panel">
+            <div class="panel-title">プレビュー</div>
+            <div id="preview-stage" class="preview-stage"></div>
+            <div class="preview-actions">
+              <button type="button" id="replay-btn" class="btn btn-primary">リプレイ</button>
+              <button type="button" id="scroll-sim-btn" class="btn btn-ghost" hidden>スクロール発火を試す</button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">イージングカーブ</div>
+            <div class="bezier-wrap">
+              <svg id="bezier-graph" viewBox="0 0 320 260" role="img" aria-label="イージングカーブのグラフ"></svg>
+              <div id="bezier-readout" class="bezier-readout mono"></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-title">エクスポート</div>
+            <div class="export-btns">
+              <button type="button" class="btn btn-ghost" data-export="obsidian">Obsidian仕様書</button>
+              <button type="button" class="btn btn-ghost" data-export="css">CSSドキュメント</button>
+              <button type="button" class="btn btn-ghost" data-export="cursor">Cursor実装ブリーフ</button>
+            </div>
+          </div>
+        </div>
+        <div class="tune-controls-col">
+          <div id="controls" class="panel controls-panel"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- エクスポート用モーダル -->
+  <div id="modal" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h3 id="modal-title"></h3>
+        <button type="button" id="modal-close" class="btn btn-ghost btn-small">閉じる</button>
+      </div>
+      <textarea id="modal-body" class="modal-body mono" readonly spellcheck="false"></textarea>
+      <div class="modal-actions">
+        <button type="button" id="modal-copy" class="btn btn-primary">コピー</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 複合アニメーションプレビュー用モーダル -->
+  <div id="proto-modal" class="modal-backdrop" hidden>
+    <div class="modal modal-wide">
+      <div class="modal-head">
+        <h3 id="proto-modal-title"></h3>
+        <button type="button" id="proto-modal-close" class="btn btn-ghost btn-small">閉じる</button>
+      </div>
+      <iframe id="proto-frame" class="proto-frame" sandbox="allow-scripts" title="複合アニメーションプレビュー"></iframe>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="animations.js"></script>
+  <script src="prototypes.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

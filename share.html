@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>motion-tuner — 共有プレビュー</title>
+  <script>
+    document.documentElement.dataset.theme = localStorage.getItem("motion-tuner:theme") || "light";
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="share-page">
+  <main id="share-root" class="share-root">
+    <div class="share-card">
+      <h1 id="share-name" class="share-name"></h1>
+      <p id="share-trigger" class="share-trigger"></p>
+      <div id="preview-stage" class="preview-stage"></div>
+      <div class="preview-actions">
+        <button type="button" id="replay-btn" class="btn btn-primary">リプレイ</button>
+      </div>
+      <div id="share-error" class="parse-error" hidden></div>
+
+      <div class="share-section">
+        <div class="share-section-title">仕様</div>
+        <div id="share-spec" class="share-spec"></div>
+      </div>
+
+      <details class="share-section share-css">
+        <summary class="share-section-title">使用しているCSS</summary>
+        <div class="share-css-actions">
+          <button type="button" id="share-css-copy" class="btn btn-ghost btn-small">CSSをコピー</button>
+        </div>
+        <pre id="share-css-code" class="share-css-code"></pre>
+      </details>
+    </div>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
