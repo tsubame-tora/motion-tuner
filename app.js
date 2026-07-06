@@ -1314,6 +1314,61 @@ function renderLibrary() {
   });
 }
 
+/* ---------- バックアップ（JSON書き出し／読み込み） ---------- */
+
+function exportBackup() {
+  const data = {
+    app: "motion-tuner",
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    library,
+    prototypes
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  a.href = URL.createObjectURL(blob);
+  a.download = `motion-tuner-backup-${stamp}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast(`バックアップを書き出しました（アニメーション${library.length}件／複合${prototypes.length}件）`);
+}
+
+/** idが同じものは上書き、新しいものは追加（マージ方式なので既存データは消えない） */
+function mergeById(target, incoming) {
+  let updated = 0;
+  let added = 0;
+  incoming.forEach((item) => {
+    if (!item || !item.id) return;
+    const idx = target.findIndex((t) => t.id === item.id);
+    if (idx >= 0) { target[idx] = item; updated++; }
+    else { target.push(item); added++; }
+  });
+  return { updated, added };
+}
+
+function importBackup(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (data.app !== "motion-tuner" || !Array.isArray(data.library)) {
+        throw new Error("motion-tunerのバックアップファイルではありません。");
+      }
+      const lib = mergeById(library, data.library);
+      const pro = mergeById(prototypes, Array.isArray(data.prototypes) ? data.prototypes : []);
+      library.forEach(syncGeneratedKeyframes);
+      saveLibrary();
+      savePrototypes();
+      renderLibrary();
+      toast(`読み込みました：アニメーション ${lib.added}件追加・${lib.updated}件更新／複合 ${pro.added}件追加・${pro.updated}件更新`);
+    } catch (e) {
+      toast(`読み込みに失敗しました：${e.message}`, true);
+    }
+  };
+  reader.readAsText(file);
+}
+
 /** プロトタイプ操作 */
 let pendingPrototypeId = null; // 「関連アニメを追加」からの遷移時に使う
 
@@ -1806,6 +1861,15 @@ function initApp() {
 
   $("#parse-btn").addEventListener("click", handleParse);
   $("#proto-save-btn").addEventListener("click", handleProtoSave);
+
+  // バックアップ書き出し／読み込み
+  $("#backup-export").addEventListener("click", exportBackup);
+  $("#backup-import").addEventListener("click", () => $("#backup-file").click());
+  $("#backup-file").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) importBackup(file);
+    e.target.value = ""; // 同じファイルを続けて選べるようにリセット
+  });
 
   // プロトタイプHTML貼り付け時、メタコメントから名前/説明を自動入力する
   $("#proto-paste-area").addEventListener("input", () => {

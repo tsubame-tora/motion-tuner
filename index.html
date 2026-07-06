@@ -35,6 +35,11 @@
       <div class="view-head">
         <h2>ライブラリ</h2>
         <p class="view-desc">複合アニメーション（親）とそれに関連するアニメーション、単体アニメーションの一覧。カードを開いてチューニングできます。</p>
+        <div class="lib-toolbar">
+          <button type="button" id="backup-export" class="btn btn-ghost btn-small">バックアップを書き出し（JSON）</button>
+          <button type="button" id="backup-import" class="btn btn-ghost btn-small">バックアップを読み込み</button>
+          <input type="file" id="backup-file" accept="application/json,.json" hidden>
+        </div>
       </div>
       <div id="library-root"></div>
     </section>

@@ -306,6 +306,13 @@ code {
   flex-wrap: wrap;
 }
 
+.lib-toolbar {
+  margin-top: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .library-empty {
   color: var(--muted);
   border: 1px dashed var(--border-strong);
